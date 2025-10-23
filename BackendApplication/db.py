@@ -15,6 +15,8 @@ def _get_client() -> Optional[MongoClient]:
         _client.admin.command("ping")
         return _client
     except Exception:
+        # Leave client as None; caller handles unavailability
+        _client = None
         return None
 
 # PUBLIC_INTERFACE

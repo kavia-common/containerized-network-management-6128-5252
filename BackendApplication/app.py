@@ -1,10 +1,10 @@
-import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
+import logging
 from werkzeug.middleware.proxy_fix import ProxyFix
 from utils.logging_conf import configure_logging
-from utils.errors import register_error_handlers, ApiError
+from utils.errors import register_error_handlers
 from config import Settings
-from db import get_db, ensure_indexes, is_db_available
+from db import ensure_indexes, is_db_available
 from routes.devices import devices_bp
 from routes.status import status_bp
 
@@ -15,6 +15,12 @@ def create_app() -> Flask:
     configure_logging(level=settings.LOG_LEVEL)
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)  # type: ignore
+
+    # Root readiness endpoint that does not depend on DB
+    @app.route("/", methods=["GET"])
+    def root():
+        """Basic readiness endpoint for container orchestration."""
+        return jsonify({"success": True, "service": "backend", "message": "OK"}), 200
 
     # Health endpoint that works even when DB is down
     @app.route("/health", methods=["GET"])
@@ -31,9 +37,12 @@ def create_app() -> Flask:
         }), 200
 
     # Initialize DB and ensure indexes if available
-    ok, _ = is_db_available()
+    ok, db_err = is_db_available()
     if ok:
         ensure_indexes()
+        logging.getLogger(__name__).info("Database available. Indexes ensured.")
+    else:
+        logging.getLogger(__name__).warning(f"Database unavailable at startup: {db_err}. Continuing without DB.")
 
     # API Blueprint mounting
     api_prefix = settings.API_PREFIX
@@ -44,7 +53,6 @@ def create_app() -> Flask:
     @app.get(f"{api_prefix}/openapi.json")
     def openapi_json():
         """Serve the OpenAPI spec as JSON."""
-        from flask import Response
         from pathlib import Path
         spec_path = Path(__file__).parent / "openapi.yaml"
         try:
@@ -89,4 +97,7 @@ def create_app() -> Flask:
 if __name__ == "__main__":
     app = create_app()
     settings = Settings.load_from_env()
+    logging.getLogger(__name__).info(
+        f"Starting Flask development server on {settings.SERVER_HOST}:{settings.SERVER_PORT} with API prefix {settings.API_PREFIX}"
+    )
     app.run(host=settings.SERVER_HOST, port=settings.SERVER_PORT)

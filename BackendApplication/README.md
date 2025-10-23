@@ -30,3 +30,30 @@ Troubleshooting
 
 Docker
 - See Dockerfile in this folder.
+
+Docker Compose (example)
+- Add a backend service like:
+  backend:
+    build: ./BackendApplication
+    container_name: backend
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3001
+      - API_PREFIX=/api/v1
+      - MONGODB_URI=mongodb://mongo:27017
+      - MONGODB_DB=devicesdb
+      - LOG_LEVEL=INFO
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    depends_on:
+      - mongo
+
+- The container listens on 0.0.0.0:3001 and responds to:
+  - GET / -> {"success": true, "service": "backend", "message": "OK"}
+  - GET /health -> includes db_available flag

@@ -1,5 +1,5 @@
 from typing import Optional, Literal
-from pydantic import BaseModel, Field, IPvAnyAddress, field_validator
+from pydantic import BaseModel, Field, IPvAnyAddress
 
 DeviceType = Literal["router", "switch", "server"]
 DeviceStatus = Literal["online", "offline"]
