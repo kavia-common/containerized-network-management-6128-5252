@@ -1,10 +1,9 @@
 import os
 import re
-import json
 import platform
 import subprocess
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Tuple
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -304,6 +303,45 @@ def serialize_device(doc: dict) -> dict:
     }
 
 
+def _to_object_id(value: str):
+    """Best-effort conversion of string to ObjectId without importing bson unless available."""
+    try:
+        from bson import ObjectId  # type: ignore
+        if ObjectId.is_valid(value):
+            return ObjectId(value)
+    except Exception:
+        pass
+    return None
+
+
+def find_device_by_any_id(db, id_value: str):
+    """Find a device by Mongo ObjectId (string) or by alt identifiers like ip_address.
+
+    Args:
+        db: The MongoDB database handle.
+        id_value: The identifier, which can be an ObjectId string, or an ip address.
+
+    Returns:
+        The matching document dict or None.
+    """
+    if not db:
+        return None
+    # Try ObjectId lookup
+    oid = _to_object_id(id_value)
+    if oid is not None:
+        doc = db.devices.find_one({"_id": oid})
+        if doc:
+            return doc
+    # If id_value looks like an ipv4, try ip_address lookup
+    if is_ipv4(id_value):
+        doc = db.devices.find_one({"ip_address": id_value})
+        if doc:
+            return doc
+    # Fallback: try by string 'id' field if such field exists in stored docs
+    doc = db.devices.find_one({"id": id_value})
+    return doc
+
+
 def init_db():
     """Initialize MongoDB connection from environment variables.
 
@@ -324,8 +362,15 @@ def init_db():
     try:
         if MongoClient is None:
             return None, False, "pymongo not installed"
-        client = MongoClient(uri, serverSelectionTimeoutMS=2000)
-        # attempt to connect
+        # Use conservative timeouts and avoid establishing sockets at import time.
+        client = MongoClient(
+            uri,
+            serverSelectionTimeoutMS=2000,
+            connectTimeoutMS=2000,
+            socketTimeoutMS=2000,
+            connect=False,
+        )
+        # attempt to connect (ping) quickly; will fail fast if DB is unavailable
         client.admin.command("ping")
         return client.get_database(), True, None
     except Exception as e:

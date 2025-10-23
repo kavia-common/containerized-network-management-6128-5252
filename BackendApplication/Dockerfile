@@ -16,4 +16,6 @@ COPY . /app
 EXPOSE 3001
 
 ENV PORT=3001
-CMD ["gunicorn", "-b", "0.0.0.0:3001", "app:create_app()"]
+# Use a dedicated WSGI entrypoint to avoid module/package name conflicts.
+# Bind explicitly to 0.0.0.0 and the configured PORT.
+CMD ["gunicorn", "-b", "0.0.0.0:3001", "wsgi:create_app()"]

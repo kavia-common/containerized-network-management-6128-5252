@@ -31,7 +31,12 @@ Responses use:
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 export MONGODB_URI="mongodb://localhost:27017/devicesdb"
+# Dev server (Flask)
 python app.py
+# Or run via Gunicorn using the WSGI entrypoint (mirrors container start)
+# PORT can be overridden; default is 3001
+export PORT=${PORT:-3001}
+gunicorn -b 0.0.0.0:${PORT} wsgi:create_app()
 ```
 
 ## Troubleshooting
