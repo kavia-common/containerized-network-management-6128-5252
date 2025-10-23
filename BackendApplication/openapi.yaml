@@ -1,0 +1,211 @@
+openapi: "3.0.3"
+info:
+  title: "Backend REST API"
+  version: "1.0.0"
+  description: "RESTful API for managing network devices and status checks."
+servers:
+  - url: "/api/v1"
+paths:
+  /devices:
+    get:
+      summary: "List all devices"
+      tags: ["Devices"]
+      responses:
+        "200":
+          description: "List of devices"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceListResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      summary: "Create a new device"
+      tags: ["Devices"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceCreateRequest"
+      responses:
+        "201":
+          description: "Created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /devices/{id}:
+    get:
+      summary: "Get device details"
+      tags: ["Devices"]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: "Device details"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    put:
+      summary: "Update a device"
+      tags: ["Devices"]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceUpdateRequest" }
+      responses:
+        "200":
+          description: "Updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      summary: "Delete a device"
+      tags: ["Devices"]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: "Deleted"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /devices/{id}/status:
+    get:
+      summary: "Get device status"
+      tags: ["Devices"]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: "Status"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+components:
+  schemas:
+    Device:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        ip_address: { type: string, format: ipv4 }
+        type: { type: string, enum: ["router","switch","server"] }
+        location: { type: string }
+        status: { type: string, enum: ["online","offline"] }
+      required: [id, name, ip_address, type, location, status]
+    DeviceListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Device" }
+        error: { type: string, nullable: true }
+      required: [success, data]
+    DeviceResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: "#/components/schemas/Device" }
+        error: { type: string, nullable: true }
+      required: [success, data]
+    DeviceCreateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        ip_address: { type: string, format: ipv4 }
+        type: { type: string, enum: ["router","switch","server"] }
+        location: { type: string }
+        status: { type: string, enum: ["online","offline"] }
+      required: [name, ip_address, type, location]
+    DeviceUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        ip_address: { type: string, format: ipv4 }
+        type: { type: string, enum: ["router","switch","server"] }
+        location: { type: string }
+        status: { type: string, enum: ["online","offline"] }
+      required: [name, ip_address, type, location, status]
+    DeviceStatusResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            status: { type: string, enum: ["online","offline"] }
+            last_checked: { type: string, format: date-time }
+          required: [status]
+        error: { type: string, nullable: true }
+      required: [success, data]
+  responses:
+    BadRequest:
+      description: "Invalid request"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              error: { type: string }
+            required: [success, error]
+    NotFound:
+      description: "Resource not found"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              error: { type: string }
+            required: [success, error]
+    InternalServerError:
+      description: "Server error"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, example: false }
+              error: { type: string }
+            required: [success, error]
