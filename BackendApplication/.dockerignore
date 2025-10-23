@@ -1,0 +1,10 @@
+__pycache__/
+.venv/
+.git/
+.gitignore
+tests/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite3
